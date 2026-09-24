@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bản đồ toàn hệ thống — Bot Telegram</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --surface:#ffffff; --text:#1a2333; --muted:#5b6b85;
+    --border:#dfe5f0; --accent:#4f46e5; --accent-soft:#eef0fe;
+    --edge:#b7c1d9; --green:#16a34a; --green-bg:#ecfdf5; --green-bd:#a7f3d0;
+    --red:#dc2626; --red-bg:#fef2f2; --red-bd:#fca5a5;
+    --amber-bg:#fffbeb; --amber-bd:#fde68a; --indigo-bg:#eef0fe;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1420; --surface:#182032; --text:#e8edf7; --muted:#93a1bd;
+      --border:#2a3650; --accent:#818cf8; --accent-soft:#232c4d;
+      --edge:#3a4a6b; --green-bg:#12291d; --green-bd:#1f5c38;
+      --red-bg:#2c1518; --red-bd:#7a2b2b; --amber-bg:#2a2313;
+      --amber-bd:#6b5518; --indigo-bg:#1d2440;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:14px;line-height:1.6;padding:20px 12px}
+  .wrap{max-width:1120px;margin:0 auto}
+  header{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:24px 20px;text-align:center;margin-bottom:14px}
+  .kicker{font-size:11px;letter-spacing:2.5px;color:var(--muted);margin-bottom:6px}
+  h1{margin:0 0 6px;font-size:23px}
+  .sub{color:var(--muted);font-size:13px}
+  .hint{background:var(--accent-soft);border:1px solid var(--border);border-radius:12px;
+    padding:10px 16px;font-size:13px;color:var(--muted);margin-bottom:8px;text-align:center}
+  h2{font-size:17px;margin:26px 0 10px}
+  h2 .bar{display:block;width:120px;height:4px;background:var(--accent);
+    border-radius:2px;margin-top:6px}
+  .scroll{overflow-x:auto;border-radius:12px}
+  .diagram{position:relative;width:1080px;height:1030px;max-width:none}
+  .diagram svg.edges{position:absolute;inset:0;width:100%;height:100%}
+  .edge{stroke:var(--edge);stroke-width:2.5;fill:none;opacity:.35;transition:all .25s}
+  .edge.red{stroke:#e88}
+  .edge.active{stroke:var(--accent);stroke-width:4.5;opacity:1}
+  .edge.red.active{stroke:var(--red)}
+  .edge.dim{opacity:.07}
+  .node{position:absolute;background:var(--surface);border:2px solid var(--border);
+    border-radius:14px;padding:8px 10px;cursor:pointer;text-align:center;
+    display:flex;flex-direction:column;justify-content:center;gap:2px;
+    transition:all .25s;user-select:none}
+  .node b{font-size:15px;line-height:1.3}
+  .node span{font-size:12.5px;color:var(--muted);line-height:1.4}
+  .node:hover{border-color:var(--accent)}
+  .node.active{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);
+    transform:scale(1.04);z-index:5}
+  .node.linked{border-color:var(--accent)}
+  .node.dim{opacity:.25}
+  .n-user{background:var(--green-bg);border-color:var(--green-bd)}
+  .n-core{background:var(--indigo-bg);border-color:var(--accent)}
+  .mod b{font-size:13.5px}
+  .mod span{font-size:11.5px}
+  .zone{position:absolute;border:2px dashed var(--border);border-radius:16px}
+  .zlabel{position:absolute;top:-15px;left:18px;background:var(--bg);padding:0 12px;
+    font-size:12px;letter-spacing:2px;color:var(--muted);font-weight:700}
+  .info{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:14px 18px;margin-top:12px;min-height:96px}
+  .info b{font-size:15px}
+  .info p{margin:6px 0 8px;color:var(--muted);font-size:13.5px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chips .cap{font-size:12.5px;color:var(--muted);align-self:center}
+  .chips span{background:var(--accent-soft);border:1px solid var(--border);
+    border-radius:20px;padding:3px 12px;font-size:12.5px}
+  .fsteps{display:flex;flex-direction:column;max-width:640px;margin:0 auto}
+  .fstep{position:static;flex-direction:row;text-align:left;align-items:center;
+    gap:14px;padding:12px 16px;margin:0}
+  .fstep i{font-style:normal;flex:0 0 40px;width:40px;height:40px;border-radius:50%;
+    background:var(--accent);color:#fff;font-weight:700;display:flex;
+    align-items:center;justify-content:center;font-size:17px}
+  .fstep>div b{display:block;font-size:15px}
+  .fstep>div span{font-size:13px;color:var(--muted)}
+  .fstep.red{background:var(--red-bg);border-color:var(--red-bd)}
+  .fstep.red b{color:var(--red)}
+  .fstep.green{background:var(--green-bg);border-color:var(--green-bd)}
+  .farrow{text-align:center;color:#9aa7c2;font-size:22px;line-height:1.1;
+    user-select:none;transition:all .25s;padding:2px 0}
+  .farrow.active{color:var(--accent);font-weight:700;transform:scale(1.25)}
+  .farrow.dim{opacity:.12}
+  .forkrow{display:flex;align-items:center;gap:10px;max-width:640px;margin:6px auto}
+  .forkrow .flabel{color:var(--muted);font-weight:700;font-size:14px;flex:0 0 64px;text-align:right}
+  .forkrow .flabel.red{color:var(--red)}
+  .farrow-h{color:var(--muted);font-size:22px;font-weight:700;transition:all .25s}
+  .farrow-h.red{color:var(--red)}
+  .farrow-h.active{transform:scale(1.3);color:var(--accent)}
+  .farrow-h.red.active{color:var(--red)}
+  .farrow-h.dim{opacity:.12}
+  .forkrow .node{flex:1}
+  .fsrc{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:900px;margin:0 auto}
+  .fsrc .node{position:static}
+  @media (max-width:640px){.fsrc{grid-template-columns:1fr}}
+  .fcenter{position:static;max-width:440px;margin:0 auto;width:100%}
+  footer{text-align:center;color:var(--muted);font-size:12px;margin:26px 0 10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">BẢN ĐỒ TOÀN HỆ THỐNG · TƯƠNG TÁC</div>
+    <h1>Bot Telegram Check Live/Die + Shop Acc</h1>
+    <div class="sub">Mọi module, mọi luồng — bấm vào để xem kết nối</div>
+  </header>
+  <div class="hint">👆 Bấm vào từng khối để xem nó nối với những gì — như hệ thống thật đang chạy. Bấm lại hoặc bấm ra ngoài để bỏ chọn.</div>
+
+  <h2>1. Bản đồ toàn hệ thống<span class="bar"></span></h2>
+  <div class="scroll">
+    <div class="diagram" id="mapDiagram">
+      <svg class="edges" viewBox="0 0 1080 1030">
+        <defs>
+          <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#b7c1d9"/>
+          </marker>
+        </defs>
+        <!-- user -> cong vao -->
+        <path class="edge" data-from="user" data-to="b-main" d="M540,70 V92 H159 V140" marker-end="url(#arr)"/>
+        <path class="edge" data-from="user" data-to="b-admin" d="M540,70 V92 H413 V140" marker-end="url(#arr)"/>
+        <path class="edge" data-from="user" data-to="b-notify" d="M540,70 V92 H667 V140" marker-end="url(#arr)"/>
+        <path class="edge" data-from="user" data-to="b-mini" d="M540,70 V92 H921 V140" marker-end="url(#arr)"/>
+        <!-- cong vao -> core -->
+        <path class="edge" data-from="b-main" data-to="core" d="M159,212 V230 H1062 V544 H650" marker-end="url(#arr)"/>
+        <path class="edge" data-from="b-admin" data-to="core" d="M413,212 V230 H1062 V544 H650" marker-end="url(#arr)"/>
+        <path class="edge" data-from="b-notify" data-to="core" d="M667,212 V230 H1062 V544 H650" marker-end="url(#arr)"/>
+        <path class="edge" data-from="b-mini" data-to="core" d="M921,212 V230 H1062 V544 H650" marker-end="url(#arr)"/>
+        <!-- core -> kenh khach -->
+        <path class="edge" data-from="core" data-to="m-check" d="M540,500 V476 H159 V448" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="m-shop" d="M540,500 V476 H413 V448" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="m-nap" d="M540,500 V476 H667 V448" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="m-vip" d="M540,500 V476 H921 V448" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="m-aff" d="M540,500 V476 H159 V448" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="m-loyal" d="M540,500 V476 H413 V448" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="m-theodoi" d="M540,500 V476 H667 V448" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="m-tienich" d="M540,500 V476 H921 V448" marker-end="url(#arr)"/>
+        <!-- core -> admin -->
+        <path class="edge" data-from="core" data-to="a-adm" d="M540,588 V624 H200 V660" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="a-shopadm" d="M540,588 V624 H540 V660" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="a-phu" d="M540,588 V624 H880 V660" marker-end="url(#arr)"/>
+        <!-- core -> ha tang -->
+        <path class="edge" data-from="core" data-to="i-db" d="M650,544 H1062 V806 H159 V820" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="i-watch" d="M650,544 H1062 V806 H413 V820" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="i-sheet" d="M650,544 H1062 V806 H667 V820" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="i-payos" d="M650,544 H1062 V806 H921 V820" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="i-tds" d="M650,544 H1062 V806 H286 V904" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="i-bg" d="M650,544 H1062 V806 H540 V904" marker-end="url(#arr)"/>
+        <path class="edge" data-from="core" data-to="i-swiss" d="M650,544 H1062 V806 H794 V904" marker-end="url(#arr)"/>
+      </svg>
+
+      <div class="node n-user" data-id="user" style="left:36.11%;top:0.97%;width:27.78%;height:5.83%">
+        <b>NGƯỜI DÙNG · App Telegram</b>
+      </div>
+
+      <div class="zone" style="left:1.85%;top:9.71%;width:96.3%;height:11.65%">
+        <span class="zlabel">CỔNG VÀO</span>
+        <div class="node mod" data-id="b-main" style="left:1.73%;top:33.33%;width:23.27%;height:60%"><b>Bot chính</b><span>@check_live_diebot</span></div>
+        <div class="node mod" data-id="b-admin" style="left:26.15%;top:33.33%;width:23.27%;height:60%"><b>Admin bot</b><span>/adm · /shopadm</span></div>
+        <div class="node mod" data-id="b-notify" style="left:50.58%;top:33.33%;width:23.27%;height:60%"><b>Bot thông báo</b><span>đơn mới · báo cáo 7h</span></div>
+        <div class="node mod" data-id="b-mini" style="left:75%;top:33.33%;width:23.27%;height:60%"><b>Mini App</b><span>ref · check bulk</span></div>
+      </div>
+
+      <div class="zone" style="left:1.85%;top:24.27%;width:96.3%;height:20.39%">
+        <span class="zlabel">KÊNH KHÁCH HÀNG</span>
+        <div class="node mod" data-id="m-check" style="left:1.73%;top:19.05%;width:23.27%;height:35.24%"><b>Check Live/Die</b><span>bulk 15 luồng · file</span></div>
+        <div class="node mod" data-id="m-shop" style="left:26.15%;top:19.05%;width:23.27%;height:35.24%"><b>Shop Acc</b><span>gian hàng · giỏ hàng</span></div>
+        <div class="node mod" data-id="m-nap" style="left:50.58%;top:19.05%;width:23.27%;height:35.24%"><b>Nạp tiền &amp; Ví</b><span>PayOS · ví · credits</span></div>
+        <div class="node mod" data-id="m-vip" style="left:75%;top:19.05%;width:23.27%;height:35.24%"><b>VIP &amp; Gói</b><span>4 hạng tự nâng</span></div>
+        <div class="node mod" data-id="m-aff" style="left:1.73%;top:59.05%;width:23.27%;height:35.24%"><b>Affiliate</b><span>F1 10–20% · F2 3%</span></div>
+        <div class="node mod" data-id="m-loyal" style="left:26.15%;top:59.05%;width:23.27%;height:35.24%"><b>Điểm &amp; Vòng quay</b><span>loyalty · quay · quà</span></div>
+        <div class="node mod" data-id="m-theodoi" style="left:50.58%;top:59.05%;width:23.27%;height:35.24%"><b>Theo dõi</b><span>/theodoi · 6 trình</span></div>
+        <div class="node mod" data-id="m-tienich" style="left:75%;top:59.05%;width:23.27%;height:35.24%"><b>Tiện ích</b><span>/tienich · /sodu</span></div>
+      </div>
+
+      <div class="node n-core" data-id="core" style="left:39.81%;top:48.54%;width:20.37%;height:8.54%">
+        <b>CORE · Backend</b><span>FastAPI + aiogram</span>
+      </div>
+
+      <div class="zone" style="left:1.85%;top:60.19%;width:96.3%;height:12.62%">
+        <span class="zlabel">KÊNH ADMIN</span>
+        <div class="node mod" data-id="a-adm" style="left:1.92%;top:30.77%;width:30.77%;height:61.54%"><b>/adm</b><span>quản trị chung</span></div>
+        <div class="node mod" data-id="a-shopadm" style="left:34.62%;top:30.77%;width:30.77%;height:61.54%"><b>/shopadm</b><span>quản trị shop</span></div>
+        <div class="node mod" data-id="a-phu" style="left:67.31%;top:30.77%;width:30.77%;height:61.54%"><b>Admin phụ</b><span>tick 10 nhóm quyền</span></div>
+      </div>
+
+      <div class="zone" style="left:1.85%;top:75.73%;width:96.3%;height:20.39%">
+        <span class="zlabel">HẠ TẦNG &amp; DỊCH VỤ</span>
+        <div class="node mod" data-id="i-db" style="left:1.73%;top:19.05%;width:23.27%;height:35.24%"><b>Database</b><span>SQLite · backup 4h</span></div>
+        <div class="node mod" data-id="i-watch" style="left:26.15%;top:19.05%;width:23.27%;height:35.24%"><b>Watchdog</b><span>cron 1 phút</span></div>
+        <div class="node mod" data-id="i-sheet" style="left:50.58%;top:19.05%;width:23.27%;height:35.24%"><b>Google Sheet</b><span>nhập kho · ĐÃ BÁN</span></div>
+        <div class="node mod" data-id="i-payos" style="left:75%;top:19.05%;width:23.27%;height:35.24%"><b>PayOS</b><span>nạp tiền</span></div>
+        <div class="node mod" data-id="i-tds" style="left:15.87%;top:59.05%;width:23.27%;height:35.24%"><b>traodoisub API</b><span>check LIVE/DIE</span></div>
+        <div class="node mod" data-id="i-bg" style="left:40.29%;top:59.05%;width:23.27%;height:35.24%"><b>Tác vụ nền</b><span>re-check · poller</span></div>
+        <div class="node mod" data-id="i-swiss" style="left:64.71%;top:59.05%;width:23.27%;height:35.24%"><b>App mail ảo</b><span>SwissTransfer</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="info" id="mapInfo"><b>Bản đồ toàn hệ thống</b><p>Bấm vào từng module để xem nó nối với những gì — ví dụ bấm Shop Acc sẽ sáng đường Người dùng → Bot chính → CORE → Database, Google Sheet, traodoisub API…</p></div>
+
+  <h2>2. Luồng mua acc<span class="bar"></span></h2>
+  <div id="buyDiagram">
+    <div class="fsteps">
+      <div class="node fstep" data-id="s1"><i>1</i><div><b>Khách chọn acc, xác nhận</b><span>Trừ tiền ví shop</span></div></div>
+      <div class="farrow" data-from="s1" data-to="s2">▼</div>
+      <div class="node fstep" data-id="s2"><i>2</i><div><b>Check LIVE 10 luồng</b><span>Chỉ sạp bật kiểm tra live</span></div></div>
+    </div>
+    <div class="forkrow">
+      <span class="flabel red">nếu</span>
+      <span class="farrow-h red" data-from="s2" data-to="die">→</span>
+      <div class="node fstep red" data-id="die"><div><b>Acc DIE</b><span>Cách ly khỏi kho + báo admin</span></div></div>
+    </div>
+    <div class="forkrow">
+      <span class="flabel red">nếu</span>
+      <span class="farrow-h red" data-from="s2" data-to="infra">→</span>
+      <div class="node fstep red" data-id="infra"><div><b>Lỗi hạ tầng</b><span>Hoàn tiền ngay cho khách</span></div></div>
+    </div>
+    <div class="fsteps">
+      <div class="farrow" data-from="s2" data-to="s3">▼</div>
+      <div class="node fstep" data-id="s3"><i>3</i><div><b>Tạo đơn · đánh dấu SOLD</b><span>Lưu người mua · giờ bán · giá bán</span></div></div>
+      <div class="farrow" data-from="s3" data-to="s4">▼</div>
+      <div class="node fstep" data-id="s4"><i>4</i><div><b>Giao acc tự động</b><span>Tin "MUA THÀNH CÔNG" + 3 cách nhận</span></div></div>
+      <div class="farrow" data-from="s4" data-to="s5">▼</div>
+      <div class="node fstep" data-id="s5"><i>5</i><div><b>Ghi ĐÃ BÁN lên Sheet</b><span>Cột J · quét mỗi 5 phút</span></div></div>
+      <div class="farrow" data-from="s5" data-to="s6">▼</div>
+      <div class="node fstep" data-id="s6"><i>6</i><div><b>Báo admin + tặng quà</b><span>Vé quay · điểm loyalty · ưu đãi 5%</span></div></div>
+    </div>
+  </div>
+  <div class="info" id="buyInfo"><b>Luồng mua acc</b><p>Bấm vào từng bước để xem dòng chảy tới bước đó — giống hệ thống thật xử lý đơn hàng.</p></div>
+
+  <h2>3. Luồng nhập kho<span class="bar"></span></h2>
+  <div id="importDiagram">
+    <div class="fsrc">
+      <div class="node" data-id="in-manual"><b>NHẬP TAY</b><span>lệnh /themacc</span></div>
+      <div class="node" data-id="in-sheet"><b>GOOGLE SHEET</b><span>/nhapkhosheet · nút bấm</span></div>
+      <div class="node" data-id="in-auto"><b>TỰ ĐỘNG</b><span>chu kỳ riêng từng sạp</span></div>
+      <div class="farrow" data-from="in-manual" data-to="kho">▼</div>
+      <div class="farrow" data-from="in-sheet" data-to="kho">▼</div>
+      <div class="farrow" data-from="in-auto" data-to="kho">▼</div>
+    </div>
+    <div class="node fcenter n-core" data-id="kho" style="margin-top:4px"><b>KHO ACC</b><span>chống trùng UID · quét DIE · SOLD khi bán</span></div>
+    <div class="farrow" data-from="kho" data-to="shop" style="max-width:440px;margin:0 auto">▼</div>
+    <div class="node fcenter n-user" data-id="shop"><b>KHÁCH MUA · /shop</b><span>chọn sạp → nhận acc tự động</span></div>
+  </div>
+  <div class="info" id="importInfo"><b>Luồng nhập kho</b><p>Bấm vào từng nguồn nhập để xem acc đi vào kho thế nào, hoặc bấm Kho acc để xem cả 3 nguồn.</p></div>
+
+  <h2>4. Luồng nạp tiền<span class="bar"></span></h2>
+  <div id="napDiagram">
+    <div class="fsteps">
+      <div class="node fstep" data-id="n1"><i>1</i><div><b>Khách /nap nhập số tiền</b><span>Chọn nhanh số tiền bằng nút bấm</span></div></div>
+      <div class="farrow" data-from="n1" data-to="n2">▼</div>
+      <div class="node fstep" data-id="n2"><i>2</i><div><b>Tạo link PayOS</b><span>Backend ký HMAC, gửi link cho khách</span></div></div>
+      <div class="farrow" data-from="n2" data-to="n3">▼</div>
+      <div class="node fstep" data-id="n3"><i>3</i><div><b>Khách chuyển khoản</b><span>Quét mã / chuyển khoản qua link</span></div></div>
+      <div class="farrow" data-from="n3" data-to="n4">▼</div>
+      <div class="node fstep" data-id="n4"><i>4</i><div><b>Webhook + poll xác nhận</b><span>PayOS báo về · poll mỗi 20s · chống cộng trùng</span></div></div>
+      <div class="farrow" data-from="n4" data-to="n5">▼</div>
+      <div class="node fstep" data-id="n5"><i>5</i><div><b>Cộng tiền + báo</b><span>Cộng ví · báo user &amp; admin · xét nâng VIP</span></div></div>
+    </div>
+    <div class="forkrow">
+      <span class="flabel red">nếu</span>
+      <span class="farrow-h red" data-from="n3" data-to="n-timeout">→</span>
+      <div class="node fstep red" data-id="n-timeout"><div><b>Quá 45 phút chưa trả</b><span>Tự động hủy link</span></div></div>
+    </div>
+  </div>
+  <div class="info" id="napInfo"><b>Luồng nạp tiền</b><p>Bấm vào từng bước để xem dòng tiền chạy thế nào trong hệ thống thật.</p></div>
+
+  <h2>5. Luồng check live/die<span class="bar"></span></h2>
+  <div id="checkDiagram">
+    <div class="fsteps">
+      <div class="node fstep" data-id="c1"><i>1</i><div><b>Gửi UID / danh sách / file</b><span>.txt · .csv · .xlsx ≤5MB, tối đa 1000 UID</span></div></div>
+      <div class="farrow" data-from="c1" data-to="c2">▼</div>
+      <div class="node fstep" data-id="c2"><i>2</i><div><b>Trừ credits</b><span>Mỗi UID 1 credit · VIP miễn phí</span></div></div>
+      <div class="farrow" data-from="c2" data-to="c3">▼</div>
+      <div class="node fstep" data-id="c3"><i>3</i><div><b>Chạy 15 luồng</b><span>Check song song qua traodoisub API</span></div></div>
+      <div class="farrow" data-from="c3" data-to="c4">▼</div>
+      <div class="node fstep" data-id="c4"><i>4</i><div><b>Kết quả 9 cột</b><span>uid | mk | tình trạng | gmail | mail thay | 2fa | ghi chú | cookie | token</span></div></div>
+      <div class="farrow" data-from="c4" data-to="c5">▼</div>
+      <div class="node fstep" data-id="c5"><i>5</i><div><b>Gợi ý mua acc thay thế</b><span>DIE ≥5 và ≥20% → gợi ý mở shop ngay</span></div></div>
+    </div>
+  </div>
+  <div class="info" id="checkInfo"><b>Luồng check live/die</b><p>Bấm vào từng bước để xem hệ thống check acc thế nào.</p></div>
+
+  <h2>6. Luồng bảo hành<span class="bar"></span></h2>
+  <div id="bhDiagram">
+    <div class="fsteps">
+      <div class="node fstep" data-id="b1"><i>1</i><div><b>Khách gửi khiếu nại</b><span>/bhdon — gửi đơn + lý do</span></div></div>
+      <div class="farrow" data-from="b1" data-to="b2">▼</div>
+      <div class="node fstep" data-id="b2"><i>2</i><div><b>Admin xem xét</b><span>/shopadm → Đơn hàng &amp; BH → danh sách chờ</span></div></div>
+      <div class="farrow" data-from="b2" data-to="b3">▼</div>
+      <div class="node fstep" data-id="b3"><i>3</i><div><b>Admin quyết định</b><span>Duyệt hoặc từ chối, có lý do rõ ràng</span></div></div>
+    </div>
+    <div class="forkrow">
+      <span class="flabel">duyệt →</span>
+      <span class="farrow-h" data-from="b3" data-to="b-ok">→</span>
+      <div class="node fstep green" data-id="b-ok"><div><b>Đổi acc mới</b><span>Check LIVE acc mới trước khi giao</span></div></div>
+    </div>
+    <div class="forkrow">
+      <span class="flabel red">từ chối →</span>
+      <span class="farrow-h red" data-from="b3" data-to="b-no">→</span>
+      <div class="node fstep red" data-id="b-no"><div><b>Từ chối</b><span>Báo lý do cho khách</span></div></div>
+    </div>
+    <div class="fsteps">
+      <div class="farrow" data-from="b3" data-to="b4">▼</div>
+      <div class="node fstep" data-id="b4"><i>4</i><div><b>Ghi nhận</b><span>Lưu người duyệt + giờ duyệt vào đơn BH</span></div></div>
+    </div>
+  </div>
+  <div class="info" id="bhInfo"><b>Luồng bảo hành</b><p>Bấm vào từng bước để xem quy trình xử lý bảo hành trong hệ thống thật.</p></div>
+
+  <h2>7. Luồng rút tiền<span class="bar"></span></h2>
+  <div id="rutDiagram">
+    <div class="fsteps">
+      <div class="node fstep" data-id="r1"><i>1</i><div><b>Khách /ruttien nhập số tiền</b><span>Nhập số tiền muốn rút</span></div></div>
+      <div class="farrow" data-from="r1" data-to="r2">▼</div>
+      <div class="node fstep" data-id="r2"><i>2</i><div><b>Trừ ví, giữ chờ duyệt</b><span>Tiền bị khóa tạm, chờ admin</span></div></div>
+      <div class="farrow" data-from="r2" data-to="r3">▼</div>
+      <div class="node fstep" data-id="r3"><i>3</i><div><b>Admin nhận yêu cầu</b><span>Admin (quyền 💰) nhận tin + nút Duyệt/Từ chối</span></div></div>
+    </div>
+    <div class="forkrow">
+      <span class="flabel">duyệt →</span>
+      <span class="farrow-h" data-from="r3" data-to="r-ok">→</span>
+      <div class="node fstep green" data-id="r-ok"><div><b>Chuyển tiền cho khách</b><span>Báo chủ shop + ghi nhật ký admin</span></div></div>
+    </div>
+    <div class="forkrow">
+      <span class="flabel red">từ chối →</span>
+      <span class="farrow-h red" data-from="r3" data-to="r-no">→</span>
+      <div class="node fstep red" data-id="r-no"><div><b>Hoàn tiền về ví</b><span>Báo lý do cho khách</span></div></div>
+    </div>
+  </div>
+  <div class="info" id="rutInfo"><b>Luồng rút tiền</b><p>Bấm vào từng bước để xem dòng tiền ra chạy thế nào trong hệ thống thật.</p></div>
+
+  <footer>Bản đồ toàn hệ thống · xuất từ Muse</footer>
+</div>
+
+<script>
+const MAP_CONN = {
+  "user": "user b-main b-admin b-notify b-mini",
+  "core": "user core b-main b-admin b-notify b-mini m-check m-shop m-nap m-vip m-aff m-loyal m-theodoi m-tienich a-adm a-shopadm a-phu i-db i-watch i-sheet i-payos i-tds i-bg i-swiss",
+  "b-main": "user b-main core m-check m-shop m-nap m-vip m-aff m-loyal m-theodoi m-tienich",
+  "b-admin": "user b-admin core a-adm a-shopadm a-phu",
+  "b-notify": "b-notify core a-adm",
+  "b-mini": "user b-mini core m-check m-aff",
+  "m-check": "user b-main m-check core i-tds i-db",
+  "m-shop": "user b-main m-shop core i-db i-sheet i-tds i-swiss",
+  "m-nap": "user b-main m-nap core i-payos i-db",
+  "m-vip": "user b-main m-vip core i-db",
+  "m-aff": "user b-main m-aff core i-db b-mini",
+  "m-loyal": "user b-main m-loyal core i-db",
+  "m-theodoi": "user b-main m-theodoi core i-db",
+  "m-tienich": "user b-main m-tienich core i-db",
+  "a-adm": "user b-admin a-adm core i-db b-notify",
+  "a-shopadm": "user b-admin a-shopadm core i-db i-sheet",
+  "a-phu": "user b-admin a-phu core i-db",
+  "i-db": "core i-db i-bg",
+  "i-watch": "core i-watch",
+  "i-sheet": "core i-sheet m-shop a-shopadm i-bg",
+  "i-tds": "core i-tds m-check m-shop",
+  "i-payos": "core i-payos m-nap",
+  "i-bg": "core i-bg i-db i-sheet",
+  "i-swiss": "core i-swiss m-shop"
+};
+const MAP_INFO = {
+  "user": ["Người dùng · App Telegram", "Mọi thao tác đều bắt đầu từ đây: khách vào bot chính / Mini App, admin vào admin bot."],
+  "core": ["CORE · Backend (Python FastAPI + aiogram)", "Trung tâm xử lý: đơn hàng, ví tiền, check live, nhập kho, phân quyền, tác vụ nền. Chạy trên uvicorn 127.0.0.1:8000."],
+  "b-main": ["Bot chính @check_live_diebot", "Cửa ngõ của khách: check live/die, shop acc, nạp tiền, ví, credits, VIP, affiliate… Mọi tin nhắn khách đều qua đây."],
+  "b-admin": ["Admin bot", "Cửa ngõ quản trị: /adm và /shopadm. Chỉ admin mới thấy menu."],
+  "b-notify": ["Bot thông báo", "@regmail_110_bot báo đơn mua mới cho admin · @web_bao_bot gửi báo cáo doanh thu 7h sáng."],
+  "b-mini": ["Mini App", "Mở ngay trong Telegram: lấy link ref affiliate, check bulk nhanh."],
+  "m-check": ["Check Live/Die", "Bulk 15 luồng, nhận file .txt/.csv/.xlsx (≤5MB, 1000 UID). Kết quả 9 cột chi tiết. DIE nhiều → gợi ý mua acc thay thế."],
+  "m-shop": ["Shop Acc", "Nhiều gian hàng (sạp), giỏ hàng, mua nhiều giảm giá, hộp mù, đặt cọc, đặt trước khi hết hàng, bảo hành, đánh giá sao."],
+  "m-nap": ["Nạp tiền & Ví", "Nạp qua PayOS (/nap), ví chính + ví shop riêng, credits check. Hoàn tiền giữ nguyên ví."],
+  "m-vip": ["VIP & Gói", "4 hạng VIP tự nâng theo tổng nạp (50k / 100k / 150k / 210k), gói credit, gói tháng tặng 90% credits."],
+  "m-aff": ["Affiliate", "Hoa hồng F1 10–20% (theo hạng), F2 3%. Giới thiệu shop nhận 10%. Menu /ref, Mini App."],
+  "m-loyal": ["Điểm & Vòng quay", "Điểm loyalty random sau mua (có trần), đổi quà, vòng quay may mắn, quà sinh nhật 50k, giftcode."],
+  "m-theodoi": ["Theo dõi", "Menu /theodoi gộp 6 trình: Facebook UID, TikTok, Instagram, Zalo, danh sách UID, cảnh báo."],
+  "m-tienich": ["Tiện ích", "/tienich, /sodu (4 loại số dư), /huongdan, /getuid, chuyển/đổi tiền…"],
+  "a-adm": ["/adm · Quản trị chung", "Menu nút: tiền tệ, quản lý user, báo cáo, mã giảm giá, broadcast & webhook, nhật ký admin, file hướng dẫn."],
+  "a-shopadm": ["/shopadm · Quản trị shop", "Kho & loại acc, giá & BH, đơn hàng, NCC, combo, hộp mù, nhập kho 3 đường, lãi theo lô."],
+  "a-phu": ["Admin phụ & phân quyền", "Thêm admin phụ, tick chọn 10 nhóm quyền. Thông báo đơn/BH chia theo quyền, duyệt rút tiền phân quyền."],
+  "i-db": ["Database · SQLite", "Lưu đơn, kho, user, ví, NCC, BH, nhật ký. Backup tự động 4h sáng, giữ 7 bản."],
+  "i-watch": ["Watchdog", "Cron mỗi 1 phút: backend chết hoặc reboot → tự restart → báo Telegram."],
+  "i-sheet": ["Google Sheet", "Nhập kho từ tab riêng từng sạp, tự ghi ĐÃ BÁN vào cột J mỗi 5 phút."],
+  "i-tds": ["traodoisub API", "Trọng tài check LIVE/DIE acc trước khi giao cho khách."],
+  "i-payos": ["PayOS", "Tạo link thanh toán (HMAC), webhook + poll 20s. PENDING quá 45p → tự hủy."],
+  "i-bg": ["Tác vụ nền", "Re-check kho 2 ngày/lần, quét DIE, đẩy ĐÃ BÁN lên Sheet, báo cáo 7h sáng, backup 4h sáng."],
+  "i-swiss": ["App mail ảo · SwissTransfer", "Link tải app xem mail ảo của acc, đi kèm trong tin giao hàng."]
+};
+const BUY_CONN = {
+  "s1": "s1", "s2": "s1 s2", "s3": "s1 s2 s3", "s4": "s1 s2 s3 s4",
+  "s5": "s1 s2 s3 s4 s5", "s6": "s1 s2 s3 s4 s5 s6",
+  "die": "s1 s2 die", "infra": "s1 s2 infra"
+};
+const BUY_INFO = {
+  "s1": ["1 · Khách chọn acc, xác nhận", "Khách chọn loại acc và số lượng trong /shop → hệ thống trừ tiền ví shop trước khi xử lý."],
+  "s2": ["2 · Check LIVE 10 luồng", "Trước khi giao, hệ thống check live 10 luồng qua traodoisub API (chỉ áp dụng sạp bật kiểm tra live)."],
+  "s3": ["3 · Tạo đơn · đánh dấu SOLD", "Tạo đơn hàng, đánh dấu acc SOLD kèm người mua, giờ bán, giá bán — giữ lại lịch sử trong kho."],
+  "s4": ["4 · Giao acc tự động", "Gửi tin “MUA THÀNH CÔNG” + 3 cách nhận: hiện thông tin, tải file .txt, tải file .xlsx."],
+  "s5": ["5 · Ghi ĐÃ BÁN lên Sheet", "Poller mỗi 5 phút ghi ĐÃ BÁN vào cột J của đúng dòng acc trên Google Sheet."],
+  "s6": ["6 · Báo admin + tặng quà", "Báo đơn cho admin qua bot riêng · tặng vé quay, điểm loyalty · ưu đãi mua thêm 5% trong 10 phút."],
+  "die": ["Nhánh · Acc DIE", "Acc check ra DIE → bị cách ly khỏi kho, báo admin nhập acc thay thế. Khách được hoàn tiền / giao acc khác."],
+  "infra": ["Nhánh · Lỗi hạ tầng", "Lỗi mạng/API khi check → không giao acc, hoàn tiền ngay cho khách, không trừ kho."]
+};
+const IMP_CONN = {
+  "in-manual": "in-manual kho", "in-sheet": "in-sheet kho", "in-auto": "in-auto kho",
+  "kho": "in-manual in-sheet in-auto kho", "shop": "kho shop"
+};
+const IMP_INFO = {
+  "in-manual": ["Nhập tay", "Lệnh /themacc — dán danh sách acc theo format: uid | mật khẩu | ngày tạo | mail thay | ghi chú | 2fa | cookie | token."],
+  "in-sheet": ["Google Sheet", "/nhapkhosheet hoặc nút bấm: chỉ đọc dòng chưa đánh dấu, chống trùng UID, ghi trạng thái ngược cột I, quét DIE nền."],
+  "in-auto": ["Nhập tự động", "Cấu hình riêng từng gian hàng: bật/tắt, chu kỳ 5–10080 phút, loại acc / NCC / giá vốn mặc định. Poller quét mỗi 5 phút."],
+  "kho": ["Kho acc", "Nơi tập trung mọi nguồn nhập: chống trùng, quét chất lượng, đánh dấu SOLD khi bán, re-check live/die định kỳ."],
+  "shop": ["Khách mua · /shop", "Khách chọn gian hàng → chọn loại acc → mua và nhận acc tự động trong 1 phút."]
+};
+const NAP_CONN = {
+  "n1": "n1", "n2": "n1 n2", "n3": "n1 n2 n3", "n4": "n1 n2 n3 n4",
+  "n5": "n1 n2 n3 n4 n5", "n-timeout": "n1 n2 n3 n-timeout"
+};
+const NAP_INFO = {
+  "n1": ["1 · Khách /nap nhập số tiền", "Chọn nhanh số tiền bằng nút bấm, không cần gõ tay."],
+  "n2": ["2 · Tạo link PayOS", "Backend tạo payment link, ký HMAC, gửi cho khách."],
+  "n3": ["3 · Khách chuyển khoản", "Quét mã / chuyển khoản qua link PayOS."],
+  "n4": ["4 · Webhook + poll xác nhận", "PayOS webhook báo về, đồng thời poll mỗi 20s. Chống cộng trùng tiền."],
+  "n5": ["5 · Cộng tiền + báo", "Cộng vào ví, báo user & admin, tự xét nâng hạng VIP."],
+  "n-timeout": ["Nhánh · Quá 45 phút", "Link PENDING quá 45 phút không trả → tự động hủy."]
+};
+const CHECK_CONN = {
+  "c1": "c1", "c2": "c1 c2", "c3": "c1 c2 c3", "c4": "c1 c2 c3 c4", "c5": "c1 c2 c3 c4 c5"
+};
+const CHECK_INFO = {
+  "c1": ["1 · Gửi UID / danh sách / file", "Hỗ trợ .txt/.csv/.xlsx ≤5MB, tối đa 1000 UID/lần."],
+  "c2": ["2 · Trừ credits", "Mỗi UID 1 credit · VIP được miễn phí."],
+  "c3": ["3 · Chạy 15 luồng", "Check song song qua traodoisub API."],
+  "c4": ["4 · Kết quả 9 cột", "uid | mật khẩu | tình trạng | gmail | mail thay | 2fa | ghi chú | cookie | token."],
+  "c5": ["5 · Gợi ý mua acc thay thế", "Nếu DIE ≥5 và ≥20% → gợi ý mở shop mua acc thay ngay."]
+};
+const BH_CONN = {
+  "b1": "b1", "b2": "b1 b2", "b3": "b1 b2 b3",
+  "b-ok": "b1 b2 b3 b-ok", "b-no": "b1 b2 b3 b-no", "b4": "b1 b2 b3 b-ok b-no b4"
+};
+const BH_INFO = {
+  "b1": ["1 · Khách gửi khiếu nại", "/bhdon — gửi đơn hàng + lý do bảo hành."],
+  "b2": ["2 · Admin xem xét", "/shopadm → Đơn hàng & BH → danh sách khiếu nại đang chờ."],
+  "b3": ["3 · Admin quyết định", "Duyệt hoặc từ chối, có lý do rõ ràng."],
+  "b-ok": ["Nhánh · Đổi acc mới", "Duyệt → đổi acc mới, check LIVE acc mới trước khi giao cho khách."],
+  "b-no": ["Nhánh · Từ chối", "Từ chối → báo lý do rõ ràng cho khách."],
+  "b4": ["4 · Ghi nhận", "Lưu người duyệt + giờ duyệt vào đơn bảo hành."]
+};
+const RUT_CONN = {
+  "r1": "r1", "r2": "r1 r2", "r3": "r1 r2 r3",
+  "r-ok": "r1 r2 r3 r-ok", "r-no": "r1 r2 r3 r-no"
+};
+const RUT_INFO = {
+  "r1": ["1 · Khách /ruttien nhập số tiền", "Nhập số tiền muốn rút khỏi ví."],
+  "r2": ["2 · Trừ ví, giữ chờ duyệt", "Tiền bị khóa tạm trong ví, chờ admin duyệt."],
+  "r3": ["3 · Admin nhận yêu cầu", "Admin có quyền Tiền tệ nhận tin kèm nút Duyệt / Từ chối."],
+  "r-ok": ["Nhánh · Duyệt", "Chuyển tiền cho khách · báo riêng về chủ shop · ghi nhật ký admin."],
+  "r-no": ["Nhánh · Từ chối", "Hoàn tiền về ví khách · báo lý do."]
+};
+const DEFAULTS = {
+  "mapInfo": "<b>Bản đồ toàn hệ thống</b><p>Bấm vào từng module để xem nó nối với những gì — ví dụ bấm Shop Acc sẽ sáng đường Người dùng → Bot chính → CORE → Database, Google Sheet, traodoisub API…</p>",
+  "buyInfo": "<b>Luồng mua acc</b><p>Bấm vào từng bước để xem dòng chảy tới bước đó — giống hệ thống thật xử lý đơn hàng.</p>",
+  "importInfo": "<b>Luồng nhập kho</b><p>Bấm vào từng nguồn nhập để xem acc đi vào kho thế nào, hoặc bấm Kho acc để xem cả 3 nguồn.</p>",
+  "napInfo": "<b>Luồng nạp tiền</b><p>Bấm vào từng bước để xem dòng tiền chạy thế nào trong hệ thống thật.</p>",
+  "checkInfo": "<b>Luồng check live/die</b><p>Bấm vào từng bước để xem hệ thống check acc thế nào.</p>",
+  "bhInfo": "<b>Luồng bảo hành</b><p>Bấm vào từng bước để xem quy trình xử lý bảo hành trong hệ thống thật.</p>",
+  "rutInfo": "<b>Luồng rút tiền</b><p>Bấm vào từng bước để xem dòng tiền ra chạy thế nào trong hệ thống thật.</p>"
+};
+
+function setupDiagram(rootId, infoId, connMap, infoMap) {
+  const root = document.getElementById(rootId);
+  const infoEl = document.getElementById(infoId);
+  const nodes = root.querySelectorAll("[data-id]");
+  const edges = root.querySelectorAll("[data-from]");
+  function reset() {
+    nodes.forEach(n => n.classList.remove("active", "linked", "dim"));
+    edges.forEach(e => e.classList.remove("active", "dim"));
+    infoEl.innerHTML = DEFAULTS[infoId];
+  }
+  nodes.forEach(n => n.addEventListener("click", ev => {
+    ev.stopPropagation();
+    const id = n.dataset.id;
+    if (n.classList.contains("active")) { reset(); return; }
+    reset();
+    const set = new Set((connMap[id] || id).split(" "));
+    set.add(id);
+    nodes.forEach(m => {
+      if (m.dataset.id === id) m.classList.add("active");
+      else if (set.has(m.dataset.id)) m.classList.add("linked");
+      else m.classList.add("dim");
+    });
+    edges.forEach(e => {
+      if (set.has(e.dataset.from) && set.has(e.dataset.to)) e.classList.add("active");
+      else e.classList.add("dim");
+    });
+    const info = infoMap[id];
+    const others = [...set].filter(x => x !== id && infoMap[x]).map(x => infoMap[x][0]);
+    infoEl.innerHTML = "<b>" + info[0] + "</b><p>" + info[1] + "</p>" +
+      (others.length ? '<div class="chips"><span class="cap">Kết nối trực tiếp:</span>' +
+        others.map(t => "<span>" + t + "</span>").join("") + "</div>" : "");
+  }));
+  root.addEventListener("click", reset);
+}
+setupDiagram("mapDiagram", "mapInfo", MAP_CONN, MAP_INFO);
+setupDiagram("buyDiagram", "buyInfo", BUY_CONN, BUY_INFO);
+setupDiagram("importDiagram", "importInfo", IMP_CONN, IMP_INFO);
+setupDiagram("napDiagram", "napInfo", NAP_CONN, NAP_INFO);
+setupDiagram("checkDiagram", "checkInfo", CHECK_CONN, CHECK_INFO);
+setupDiagram("bhDiagram", "bhInfo", BH_CONN, BH_INFO);
+setupDiagram("rutDiagram", "rutInfo", RUT_CONN, RUT_INFO);
+</script>
+</body>
+</html>
